@@ -63,24 +63,12 @@ def karatsuba(x: int, y: int) -> int:
 
 def demonstrate_karatsuba():
     """
-    Demonstrate how Karatsuba multiplication works with examples.
+    Demonstrate how Karatsuba multiplication works with example.
     """
-    # Example 1: Simple multiplication
-    x, y = 123, 456
-    result = karatsuba(x, y)
-    print(f"Example 1: {x} × {y} = {result}")
-    print(f"Verification: {x * y == result}\n")
-    
-    # Example 2: Larger numbers
-    x, y = 12345, 6789
-    result = karatsuba(x, y)
-    print(f"Example 2: {x} × {y} = {result}")
-    print(f"Verification: {x * y == result}\n")
-    
-    # Example 3: Very large numbers
+    # Example : Very large numbers
     x, y = 1234567, 7654321
     result = karatsuba(x, y)
-    print(f"Example 3: {x} × {y} = {result}")
+    print(f"Example : {x} × {y} = {result}")
     print(f"Verification: {x * y == result}")
 
 
