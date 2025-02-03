@@ -1,20 +1,15 @@
-
 """
-Toom-3 Multiplication Algorithm Tutorial
---------------------------------------
+Corrected Toom-3 Multiplication Algorithm
+-------------------------------------------
 
-The Toom-3 algorithm (also known as Toom-Cook-3) is an advanced multiplication algorithm that extends
-the ideas of Karatsuba's algorithm. While Karatsuba splits numbers into 2 parts, Toom-3 splits them
-into 3 parts, leading to better asymptotic complexity for very large numbers.
+This implementation splits each number into three parts, evaluates the corresponding
+polynomials at points [0, 1, -1, 2, ∞], multiplies pointwise, and then fully
+interpolates to recover the degree-4 product polynomial.
 
-Comparison with other multiplication algorithms:
+Multiplication complexities:
 - Classical: O(n²)
 - Karatsuba: O(n^log₂3) ≈ O(n^1.585)
 - Toom-3:    O(n^log₃5) ≈ O(n^1.465)
-
-Basic principle:
-For a number x with n digits, we split it into 3 parts:
-x = x₀ + x₁b + x₂b²  where b = n^(1/3)
 """
 
 from typing import Tuple, List
@@ -25,16 +20,9 @@ def split_number(n: int, b: int) -> Tuple[int, int, int]:
     """
     Split a number into three parts using base b.
     
-    Args:
-        n (int): Number to split
-        b (int): Base for splitting (usually a power of the input length)
-    
-    Returns:
-        Tuple[int, int, int]: Three parts of the number
-    
     Example:
         >>> split_number(12345, 10)
-        (45, 23, 1)  # 12345 = 45 + 23*10 + 1*100
+        (45, 23, 1)  # because 12345 = 45 + 23*10 + 1*100
     """
     x0 = n % b
     x1 = (n // b) % b
@@ -44,115 +32,130 @@ def split_number(n: int, b: int) -> Tuple[int, int, int]:
 
 def evaluate_at_points(x0: int, x1: int, x2: int) -> List[int]:
     """
-    Evaluate the polynomial P(x) = x₂x² + x₁x + x₀ at points [0, 1, -1, 2, ∞]
-    
-    Args:
-        x0, x1, x2: Coefficients of the polynomial
+    Evaluate the polynomial P(x) = x2*x^2 + x1*x + x0 at points [0, 1, -1, 2, ∞].
     
     Returns:
-        List[int]: Values at the evaluation points
+        List[int]: [P(0), P(1), P(-1), P(2), P(∞)]
+    
+    Note: P(∞) is taken as the highest-degree coefficient.
     """
-    # P(0) = x₀
-    p0 = x0
-    
-    # P(1) = x₂ + x₁ + x₀
-    p1 = x2 + x1 + x0
-    
-    # P(-1) = x₂ - x₁ + x₀
-    p_minus_1 = x2 - x1 + x0
-    
-    # P(2) = 4x₂ + 2x₁ + x₀
-    p2 = 4 * x2 + 2 * x1 + x0
-    
-    # P(∞) = x₂ (highest degree coefficient)
-    p_inf = x2
-    
+    p0 = x0                             # P(0)
+    p1 = x0 + x1 + x2                   # P(1)
+    p_minus_1 = x0 - x1 + x2            # P(-1)
+    p2 = x0 + 2 * x1 + 4 * x2           # P(2)
+    p_inf = x2                         # P(∞)
     return [p0, p1, p_minus_1, p2, p_inf]
 
 
-def interpolate(points: List[int]) -> Tuple[int, int, int]:
+def interpolate(points: List[int]) -> Tuple[int, int, int, int, int]:
     """
-    Interpolate the product polynomial from points.
-    
-    Args:
-        points (List[int]): Values at the evaluation points [0, 1, -1, 2, ∞]
-    
-    Returns:
-        Tuple[int, int, int]: Coefficients of the result polynomial
+    Interpolate the five coefficients (c0, c1, c2, c3, c4) of the product polynomial
+    from the evaluation points.
+
+    Let the product polynomial be:
+         C(x) = c0 + c1*x + c2*x^2 + c3*x^3 + c4*x^4
+
+    We have:
+         r0 = C(0) = c0
+         r1 = C(1) = c0 + c1 + c2 + c3 + c4
+         r(-1) = C(-1) = c0 - c1 + c2 - c3 + c4
+         r2 = C(2) = c0 + 2c1 + 4c2 + 8c3 + 16c4
+         r_inf = C(∞) = c4
+
+    The interpolation is performed as follows:
+        c0 = r0
+        c4 = r_inf
+        c2 = (r1 + r(-1))//2 - c0 - c4
+        Let S = (r1 - r(-1))//2 = c1 + c3
+        From r2:
+           r2 - c0 - 4c2 - 16c4 = 2c1 + 8c3 = 2*(c1 + 4c3)
+           But since c1 + c3 = S, we introduce D = c1 - c3.
+           It can be shown that:
+           D = (5S - (r2 - c0 - 4*c2 - 16*c4)) // 3
+        Then:
+           c1 = (S + D) // 2
+           c3 = (S - D) // 2
     """
-    # These formulas come from solving the system of equations
-    # and simplifying the interpolation formulas
-    r0 = points[0]
-    r4 = points[4]
-    
-    r3 = (points[3] - points[1]) // 2
-    r1 = points[1] - points[0]
-    r2 = points[2] - points[0]
-    
+    r0, r1, r_minus1, r2, r_inf = points
     c0 = r0
-    c1 = (r1 - r2) // 2
-    c2 = r2 - r1 + r0
-    c3 = (r3 - 2 * r2 + r1) // 6
-    c4 = r4 - c3 - c2 - c1 - c0
-    
-    return c0, c1, c2
+    c4 = r_inf
+    # Recover c2
+    c2 = (r1 + r_minus1) // 2 - c0 - c4
+    # S = c1 + c3
+    S = (r1 - r_minus1) // 2
+    # From r2:
+    temp = r2 - c0 - 4 * c2 - 16 * c4  # equals (2c1 + 8c3)
+    # We have 2c1 + 8c3 = 5S - 3D, so:
+    D = (5 * S - temp) // 3  # D = c1 - c3
+    c1 = (S + D) // 2
+    c3 = (S - D) // 2
+    return c0, c1, c2, c3, c4
 
 
 def toom3(x: int, y: int) -> int:
     """
     Multiply two integers using the Toom-3 algorithm.
     
-    Args:
-        x (int): First number
-        y (int): Second number
-    
-    Returns:
-        int: Product of x and y
-    
-    Example:
-        >>> toom3(123456, 789012)
-        97408129472
+    For small x or y, it falls back to classical multiplication.
     """
-    # Base case: for small numbers, use regular multiplication
+    # Base case: for small numbers, use the standard multiplication.
     if x < 1000 or y < 1000:
         return x * y
-    
-    # Determine the base for splitting (approximately cube root of the input)
+
+    # Determine the base for splitting (approximately a cube-root of the number length)
     n = max(len(str(x)), len(str(y)))
     b = 10 ** (n // 3)
-    
-    # Split both numbers into three parts
+
+    # Split the numbers into three parts.
     x0, x1, x2 = split_number(x, b)
     y0, y1, y2 = split_number(y, b)
-    
-    # Evaluate both polynomials at 5 points
+
+    # Evaluate both numbers as polynomials at the five points.
     px = evaluate_at_points(x0, x1, x2)
     py = evaluate_at_points(y0, y1, y2)
-    
-    # Pointwise multiplication
+
+    # Pointwise multiplication: multiply the evaluations.
     points = [px[i] * py[i] for i in range(5)]
-    
-    # Interpolate to get result coefficients
-    r0, r1, r2 = interpolate(points)
-    
-    # Combine the results
-    return r0 + r1 * b + r2 * (b * b)
+
+    # Interpolate to recover the five coefficients.
+    c0, c1, c2, c3, c4 = interpolate(points)
+
+    # Recombine the coefficients to get the final product.
+    return c0 + c1 * b + c2 * (b ** 2) + c3 * (b ** 3) + c4 * (b ** 4)
+
+
+def karatsuba(x: int, y: int) -> int:
+    """
+    A simple implementation of Karatsuba multiplication for comparison.
+    """
+    # Base case for small numbers
+    if x < 10 or y < 10:
+        return x * y
+
+    # Calculates the size of the numbers.
+    n = max(len(str(x)), len(str(y)))
+    half = n // 2
+
+    # Split x and y
+    high_x, low_x = divmod(x, 10 ** half)
+    high_y, low_y = divmod(y, 10 ** half)
+
+    # 3 recursive calls
+    z0 = karatsuba(low_x, low_y)
+    z2 = karatsuba(high_x, high_y)
+    z1 = karatsuba(low_x + high_x, low_y + high_y) - z2 - z0
+
+    return (z2 * 10 ** (2 * half)) + (z1 * 10 ** half) + z0
 
 
 def compare_multiplication_methods(x: int, y: int) -> None:
     """
-    Compare different multiplication methods.
+    Compare standard, Karatsuba, and Toom-3 multiplication.
     """
-    # Standard multiplication
     standard = x * y
-    
-    # Import Karatsuba from the other file
-    import karatsuba
-    karatsuba_result = karatsuba.karatsuba(x, y)
-    
-    # Toom-3
+    karatsuba_result = karatsuba(x, y)
     toom3_result = toom3(x, y)
-    
+
     print(f"Numbers: {x} × {y}")
     print(f"Standard:  {standard}")
     print(f"Karatsuba: {karatsuba_result}")
@@ -161,12 +164,18 @@ def compare_multiplication_methods(x: int, y: int) -> None:
 
 
 if __name__ == "__main__":
-    print("Toom-3 Multiplication Algorithm Demonstration")
-    print("-------------------------------------------")
+    print("Corrected Toom-3 Multiplication Algorithm Demonstration")
+    print("-------------------------------------------------------\n")
     
-    # Example: Small numbers
+    # Example 1: Small numbers
     compare_multiplication_methods(123, 456)
     
-    # Example: Medium numbers, but failed
+    # Example 2: Larger numbers
     compare_multiplication_methods(1234567, 7654321)
-    
+
+    # Example 3: Even larger numbers
+    a = 12345678901234567890
+    b = 98765432109876543210
+    compare_multiplication_methods(a, b)
+
+
