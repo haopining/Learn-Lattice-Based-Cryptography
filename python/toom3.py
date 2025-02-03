@@ -1,5 +1,5 @@
 """
-Corrected Toom-3 Multiplication Algorithm
+Toom-3 Multiplication Algorithm Tutorial
 -------------------------------------------
 
 This implementation splits each number into three parts, evaluates the corresponding
@@ -22,12 +22,53 @@ def split_number(n: int, b: int) -> Tuple[int, int, int]:
     
     Example:
         >>> split_number(12345, 10)
-        (45, 23, 1)  # because 12345 = 45 + 23*10 + 1*100
+        (45, 23, 1)  # because 12345 = 5 + 4*10 + 123*100
     """
     x0 = n % b
     x1 = (n // b) % b
     x2 = n // (b * b)
     return x0, x1, x2
+
+
+def test_split_number():
+    """
+    Test cases for the split_number function.
+    """
+    # Test case 1: Simple number with base 10
+    num = 12345
+    base = 10
+    x0, x1, x2 = split_number(num, base)
+    print(f"\nTest 1: split_number({num}, {base})")
+    print(f"Result: ({x0}, {x1}, {x2})")
+    print(f"Verification: {x0 + x1*base + x2*base*base == num}")
+    print(f"Expected: (5, 4, 123)")
+
+    # Test case 2: Larger number with base 100
+    num = 123456789
+    base = 100
+    x0, x1, x2 = split_number(num, base)
+    print(f"\nTest 2: split_number({num}, {base})")
+    print(f"Result: ({x0}, {x1}, {x2})")
+    print(f"Verification: {x0 + x1*base + x2*base*base == num}")
+    print(f"Expected: (89, 67, 12345)")
+
+    # Test case 3: Small number with base 2
+    num = 15  # binary: 1111
+    base = 2
+    x0, x1, x2 = split_number(num, base)
+    print(f"\nTest 3: split_number({num}, {base})")
+    print(f"Result: ({x0}, {x1}, {x2})")
+    print(f"Verification: {x0 + x1*base + x2*base*base == num}")
+    print(f"Expected: (1, 1, 3)")
+
+    # Test case 4: Zero
+    num = 0
+    base = 10
+    x0, x1, x2 = split_number(num, base)
+    print(f"\nTest 4: split_number({num}, {base})")
+    print(f"Result: ({x0}, {x1}, {x2})")
+    print(f"Verification: {x0 + x1*base + x2*base*base == num}")
+    print(f"Expected: (0, 0, 0)")
 
 
 def evaluate_at_points(x0: int, x1: int, x2: int) -> List[int]:
@@ -76,13 +117,13 @@ def interpolate(points: List[int]) -> Tuple[int, int, int, int, int]:
            c1 = (S + D) // 2
            c3 = (S - D) // 2
     """
-    r0, r1, r_minus1, r2, r_inf = points
+    r0, r1, r_minus_1, r2, r_inf = points
     c0 = r0
     c4 = r_inf
     # Recover c2
-    c2 = (r1 + r_minus1) // 2 - c0 - c4
+    c2 = (r1 + r_minus_1) // 2 - c0 - c4
     # S = c1 + c3
-    S = (r1 - r_minus1) // 2
+    S = (r1 - r_minus_1) // 2
     # From r2:
     temp = r2 - c0 - 4 * c2 - 16 * c4  # equals (2c1 + 8c3)
     # We have 2c1 + 8c3 = 5S - 3D, so:
@@ -124,36 +165,13 @@ def toom3(x: int, y: int) -> int:
     return c0 + c1 * b + c2 * (b ** 2) + c3 * (b ** 3) + c4 * (b ** 4)
 
 
-def karatsuba(x: int, y: int) -> int:
-    """
-    A simple implementation of Karatsuba multiplication for comparison.
-    """
-    # Base case for small numbers
-    if x < 10 or y < 10:
-        return x * y
-
-    # Calculates the size of the numbers.
-    n = max(len(str(x)), len(str(y)))
-    half = n // 2
-
-    # Split x and y
-    high_x, low_x = divmod(x, 10 ** half)
-    high_y, low_y = divmod(y, 10 ** half)
-
-    # 3 recursive calls
-    z0 = karatsuba(low_x, low_y)
-    z2 = karatsuba(high_x, high_y)
-    z1 = karatsuba(low_x + high_x, low_y + high_y) - z2 - z0
-
-    return (z2 * 10 ** (2 * half)) + (z1 * 10 ** half) + z0
-
-
 def compare_multiplication_methods(x: int, y: int) -> None:
     """
     Compare standard, Karatsuba, and Toom-3 multiplication.
     """
+    import karatsuba
     standard = x * y
-    karatsuba_result = karatsuba(x, y)
+    karatsuba_result = karatsuba.karatsuba(x, y)
     toom3_result = toom3(x, y)
 
     print(f"Numbers: {x} × {y}")
@@ -164,7 +182,12 @@ def compare_multiplication_methods(x: int, y: int) -> None:
 
 
 if __name__ == "__main__":
-    print("Corrected Toom-3 Multiplication Algorithm Demonstration")
+    # Run split_number tests
+    print("Testing split_number function")
+    print("============================")
+    test_split_number()
+    
+    print("\nToom-3 Multiplication Algorithm Demonstration")
     print("-------------------------------------------------------\n")
     
     # Example 1: Small numbers
@@ -177,5 +200,3 @@ if __name__ == "__main__":
     a = 12345678901234567890
     b = 98765432109876543210
     compare_multiplication_methods(a, b)
-
-
